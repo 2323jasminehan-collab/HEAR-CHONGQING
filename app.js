@@ -16,9 +16,9 @@ const locations = [
     district: "Yuzhong",
     signature: "Passing Monorail",
     audio: "public/audio/liziba.mp3",
-    preview: "public/assets/preview-fast/liziba.jpg",
+    preview: "public/assets/preview/liziba.jpg",
     detail: "public/assets/detail/liziba.jpg",
-    archive: "public/assets/archive-fast/liziba.jpg",
+    archive: "public/assets/archive/liziba.png",
     intro: "The iconic station where trains pass through a residential building, creating one of Chongqing's most recognizable sounds.",
     about: "A landmark where the monorail passes directly through a residential building, showcasing Chongqing's unique urban landscape.",
     related: [
@@ -36,9 +36,9 @@ const locations = [
     district: "Yuzhong",
     signature: "Urban Ambience",
     audio: "public/audio/jiefangbei.mp3",
-    preview: "public/assets/preview-fast/jiefangbei.jpg",
+    preview: "public/assets/preview/jiefangbei.jpg",
     detail: "public/assets/detail/jiefangbei.jpg",
-    archive: "public/assets/archive-fast/jiefangbei.jpg",
+    archive: "public/assets/archive/jiefangbei.png",
     intro: "The heartbeat of urban life, filled with movement, commerce, traffic, and everyday city activity.",
     about: "The vibrant center of Chongqing, where crowds, traffic, and daily activities create the rhythm of city life.",
     related: [
@@ -56,9 +56,9 @@ const locations = [
     district: "Yubei",
     signature: "Public Activity",
     audio: "public/audio/ranjiaba.mp3",
-    preview: "public/assets/preview-fast/ranjiaba.jpg",
+    preview: "public/assets/preview/ranjiaba.jpg",
     detail: "public/assets/detail/ranjiaba.jpg",
-    archive: "public/assets/archive-fast/ranjiaba.jpg",
+    archive: "public/assets/archive/ranjiaba.png",
     intro: "A hub of connection and movement, shaped by commuters, conversations, and everyday public activity.",
     about: "A busy transportation district filled with commuters, conversations, and the fast pace of everyday movement.",
     related: [
@@ -76,9 +76,9 @@ const locations = [
     district: "Yuzhong",
     signature: "Cultural Landscape",
     audio: "public/audio/eling.mp3",
-    preview: "public/assets/preview-fast/eling.jpg",
+    preview: "public/assets/preview/eling.jpg",
     detail: "public/assets/detail/eling.jpg",
-    archive: "public/assets/archive-fast/eling.jpg",
+    archive: "public/assets/archive/eling.png",
     intro: "A place where history meets the city, combining heritage, architecture, and panoramic views.",
     about: "A historic park that combines cultural heritage, architecture, and panoramic views of the city.",
     related: [
@@ -96,9 +96,9 @@ const locations = [
     district: "Nan'an",
     signature: "Mountain Atmosphere",
     audio: "public/audio/nanshan.mp3",
-    preview: "public/assets/preview-fast/nanshan.jpg",
+    preview: "public/assets/preview/nanshan.jpg",
     detail: "public/assets/detail/nanshan.jpg",
-    archive: "public/assets/archive-fast/nanshan.jpg",
+    archive: "public/assets/archive/nanshan.png",
     intro: "A natural escape above the city, offering quiet mountain air and a softer urban edge.",
     about: "A mountain area known for its natural scenery, offering a peaceful contrast to the urban environment.",
     related: [
@@ -116,9 +116,9 @@ const locations = [
     district: "Jiangbei",
     signature: "Performance Space",
     audio: "public/audio/grand-theatre.mp3",
-    preview: "public/assets/preview-fast/grand-theater.jpg",
+    preview: "public/assets/preview/grand-theater.jpg",
     detail: "public/assets/detail/grand-theater.jpg",
-    archive: "public/assets/archive-fast/grand-theater.jpg",
+    archive: "public/assets/archive/grand-theater.png",
     intro: "A stage for culture and creativity along the riverside, hosting performances, exhibitions, and events.",
     about: "A modern cultural venue that hosts performances, exhibitions, and public events along the riverside.",
     related: [
@@ -175,10 +175,6 @@ const audioState = {
   playing: false,
   timer: null,
   media: null,
-  context: null,
-  oscillator: null,
-  gain: null,
-  usingFallback: false,
 };
 
 const archiveButtonAssets = {
@@ -191,6 +187,54 @@ const archiveButtonAssets = {
 };
 
 let assetsPreloaded = false;
+const imageCache = new Map();
+const audioCache = new Map();
+
+function warmImage(src) {
+  if (imageCache.has(src)) return imageCache.get(src);
+  const img = new Image();
+  img.decoding = "async";
+  img.loading = "eager";
+  img.src = src;
+  const ready = img.decode ? img.decode().catch(() => {}) : new Promise((resolve) => {
+    img.onload = resolve;
+    img.onerror = resolve;
+  });
+  const entry = { img, ready };
+  imageCache.set(src, entry);
+  return entry;
+}
+
+function warmAudio(slug) {
+  if (audioCache.has(slug)) return audioCache.get(slug);
+  const loc = locationBySlug(slug);
+  const audio = new Audio(loc.audio);
+  audio.preload = "auto";
+  audio.load();
+  audioCache.set(slug, audio);
+  return audio;
+}
+
+function warmRouteAssets(route) {
+  if (route === routes.map) {
+    locations.forEach((loc) => {
+      warmImage(loc.preview);
+      warmAudio(loc.slug);
+    });
+    warmImage("public/assets/map/the-map-2.png");
+  }
+  if (route === routes.archive) {
+    archiveOrder.forEach((slug) => warmImage(locationBySlug(slug).archive));
+  }
+  if (route === routes.detail) {
+    const loc = locationBySlug(state.selectedSlug);
+    warmImage(loc.detail);
+    warmImage(basicInfoPhoto(loc));
+    warmAudio(loc.slug);
+  }
+  if (route === routes.about) warmImage("public/assets/screens/about-clean-stars.png");
+  if (route === routes.login) warmImage("public/assets/screens/login-clean-motion.png");
+}
 
 function preloadPublishedAssets() {
   if (assetsPreloaded) return;
@@ -220,24 +264,18 @@ function preloadPublishedAssets() {
   ]);
 
   imagePaths.forEach((src) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.src = src;
+    warmImage(src);
   });
 
-  locations.forEach((loc) => {
-    const audio = document.createElement("audio");
-    audio.preload = "metadata";
-    audio.src = loc.audio;
-  });
+  locations.forEach((loc) => warmAudio(loc.slug));
 }
 
 function scheduleAssetPreload() {
   const run = () => preloadPublishedAssets();
   if ("requestIdleCallback" in window) {
-    window.requestIdleCallback(run, { timeout: 1600 });
+    window.requestIdleCallback(run, { timeout: 400 });
   } else {
-    window.setTimeout(run, 700);
+    window.setTimeout(run, 120);
   }
 }
 
@@ -248,15 +286,6 @@ const homeHotspots = {
   eling: [844, 702, 112, 48],
   nanshan: [1176, 750, 112, 48],
   "grand-theater": [952, 384, 128, 48],
-};
-
-const freqs = {
-  liziba: 146,
-  jiefangbei: 196,
-  ranjiaba: 174,
-  eling: 220,
-  nanshan: 132,
-  "grand-theater": 246,
 };
 
 function locationBySlug(slug) {
@@ -340,84 +369,58 @@ function pulseReactiveText(node) {
   window.setTimeout(() => node.classList.remove("is-tapped"), 220);
 }
 
-function stopAudio() {
+function stopAudio(silent = false) {
   if (audioState.timer) clearInterval(audioState.timer);
   audioState.timer = null;
 
   if (audioState.media) {
     audioState.media.pause();
-    audioState.media.src = "";
+    try {
+      audioState.media.currentTime = 0;
+    } catch {}
   }
   audioState.media = null;
 
-  if (audioState.oscillator) {
-    try {
-      audioState.oscillator.stop();
-    } catch {}
-  }
-  if (audioState.gain) {
-    try {
-      audioState.gain.disconnect();
-    } catch {}
-  }
-
-  audioState.oscillator = null;
-  audioState.gain = null;
   audioState.slug = null;
   audioState.duration = 0;
   audioState.elapsed = 0;
   audioState.playing = false;
-  audioState.usingFallback = false;
-  refreshAudioUi();
-}
-
-function startFallback(slug) {
-  if (audioState.usingFallback || !audioState.playing) return;
-  audioState.usingFallback = true;
-
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return;
-  if (!audioState.context) audioState.context = new AudioContext();
-
-  const oscillator = audioState.context.createOscillator();
-  const gain = audioState.context.createGain();
-  oscillator.type = "sine";
-  oscillator.frequency.value = freqs[slug] || 180;
-  gain.gain.value = 0.035;
-  oscillator.connect(gain);
-  gain.connect(audioState.context.destination);
-  oscillator.start();
-  audioState.oscillator = oscillator;
-  audioState.gain = gain;
+  if (!silent) refreshAudioUi();
 }
 
 function startLocationAudio(slug, duration) {
-  const loc = locationBySlug(slug);
   if (audioState.playing && audioState.slug === slug && audioState.duration === duration) {
     refreshAudioUi();
     return;
   }
 
-  stopAudio();
+  stopAudio(true);
+  const media = warmAudio(slug);
+  media.pause();
+  try {
+    media.currentTime = 0;
+  } catch {}
+
   audioState.slug = slug;
   audioState.duration = duration;
   audioState.elapsed = 0;
   audioState.playing = true;
-
-  const media = new Audio(loc.audio);
   audioState.media = media;
-  media.addEventListener("error", () => startFallback(slug), { once: true });
-  media.addEventListener("ended", () => stopAudio(), { once: true });
-  media.play().catch(() => startFallback(slug));
+
+  const onEnded = () => stopAudio();
+  media.addEventListener("ended", onEnded, { once: true });
+  media.play().catch(() => {
+    if (audioState.media === media) stopAudio();
+  });
 
   audioState.timer = setInterval(() => {
-    audioState.elapsed += 0.25;
+    audioState.elapsed = Math.min(duration, media.currentTime || (audioState.elapsed + 0.1));
     if (audioState.elapsed >= duration) {
       stopAudio();
       return;
     }
     refreshAudioUi();
-  }, 250);
+  }, 100);
 
   refreshAudioUi();
 }
@@ -621,6 +624,9 @@ function refreshMapSelection() {
 }
 
 function selectMapLocation(slug, options = {}) {
+  const loc = locationBySlug(slug);
+  warmImage(loc.preview);
+  warmAudio(slug);
   state.selectedSlug = slug;
   if (options.closeSubFilter) closeMapSubFilter();
   focusMap(slug, options.keepZoom ?? true);
@@ -631,6 +637,12 @@ function selectMapLocation(slug, options = {}) {
 
 function wireMapSubFilter() {
   app.querySelectorAll("[data-sub-location]").forEach((button) => {
+    button.addEventListener("pointerenter", () => {
+      const slug = button.getAttribute("data-sub-location");
+      const loc = locationBySlug(slug);
+      warmImage(loc.preview);
+      warmAudio(slug);
+    });
     button.addEventListener("click", () => {
       const slug = button.getAttribute("data-sub-location");
       selectMapLocation(slug, { keepZoom: false, closeSubFilter: true, autoplay: true });
@@ -945,8 +957,15 @@ function render() {
 
 function wireCommon() {
   app.querySelectorAll("[data-nav]").forEach((button) => {
+    button.addEventListener("pointerenter", () => {
+      warmRouteAssets(button.getAttribute("data-nav"));
+    });
+    button.addEventListener("focus", () => {
+      warmRouteAssets(button.getAttribute("data-nav"));
+    });
     button.addEventListener("click", () => {
       const target = button.getAttribute("data-nav");
+      warmRouteAssets(target);
       if (button.classList.contains("back-btn")) {
         button.classList.add("is-pressed");
         window.setTimeout(() => navigate(target), 120);
@@ -962,6 +981,10 @@ function wireCommon() {
   });
 
   app.querySelectorAll("[data-home-location]").forEach((button) => {
+    button.addEventListener("pointerenter", () => {
+      const slug = button.getAttribute("data-home-location");
+      warmAudio(slug);
+    });
     button.addEventListener("click", () => {
       const slug = button.getAttribute("data-home-location");
       selectHomeLocation(slug);
@@ -970,6 +993,9 @@ function wireCommon() {
 
   app.querySelectorAll("[data-play-slug]").forEach((button) => {
     if (button.closest("#archiveGrid")) return;
+    button.addEventListener("pointerenter", () => {
+      warmAudio(button.getAttribute("data-play-slug"));
+    });
     button.addEventListener("click", () => {
       const slug = button.getAttribute("data-play-slug");
       const duration = Number(button.getAttribute("data-duration") || 30);
@@ -1061,6 +1087,12 @@ function wireMap() {
   });
 
   app.querySelectorAll("[data-map-location]").forEach((button) => {
+    button.addEventListener("pointerenter", () => {
+      const slug = button.getAttribute("data-map-location");
+      const loc = locationBySlug(slug);
+      warmImage(loc.preview);
+      warmAudio(slug);
+    });
     button.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
     });
@@ -1137,6 +1169,9 @@ function wireArchive() {
 
 function wireArchiveCards() {
   app.querySelectorAll("#archiveGrid [data-play-slug]").forEach((button) => {
+    button.addEventListener("pointerenter", () => {
+      warmAudio(button.getAttribute("data-play-slug"));
+    });
     button.addEventListener("click", () => {
       const slug = button.getAttribute("data-play-slug");
       const duration = Number(button.getAttribute("data-duration") || 30);
