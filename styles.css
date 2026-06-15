@@ -23,7 +23,7 @@ body {
   min-width: 1180px;
   height: 100%;
   margin: 0;
-  background: #d7d7d7;
+  background: #d7d7d7 url("public/assets/screens/background-of-all.png") center / cover fixed no-repeat;
   color: var(--deep-blue);
   font-family: Inter, Arial, Helvetica, sans-serif;
   overflow: auto;
@@ -54,7 +54,7 @@ button {
   transform: scale(var(--scale));
   transform-origin: top left;
   overflow: hidden;
-  background: var(--gray);
+  background: url("public/assets/screens/background-of-all.png") center / cover no-repeat;
 }
 
 .scene {
@@ -62,7 +62,7 @@ button {
   width: 1440px;
   height: 1024px;
   overflow: hidden;
-  background: var(--gray);
+  background: url("public/assets/screens/background-of-all.png") center / cover no-repeat;
   opacity: 0;
   transform: translateY(20px);
   animation: pageIn 400ms ease forwards;
