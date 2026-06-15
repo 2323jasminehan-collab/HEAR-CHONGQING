@@ -190,6 +190,56 @@ const archiveButtonAssets = {
   pause: "public/assets/buttons/archive-pause.png",
 };
 
+let assetsPreloaded = false;
+
+function preloadPublishedAssets() {
+  if (assetsPreloaded) return;
+  assetsPreloaded = true;
+
+  const imagePaths = new Set([
+    "public/assets/screens/home-clean-intro.png",
+    "public/assets/screens/map.jpg",
+    "public/assets/map/the-map-2.png",
+    "public/assets/screens/detail.jpg",
+    "public/assets/screens/archive.jpg",
+    "public/assets/screens/archive-grid-clean.png",
+    "public/assets/screens/about-clean-stars.png",
+    "public/assets/screens/login-clean-motion.png",
+    ...Object.values(archiveButtonAssets),
+    ...Object.values(basicInfoPhotos),
+    ...locations.flatMap((loc) => [loc.preview, loc.detail, loc.archive]),
+    "public/assets/about/star-original-sound.png",
+    "public/assets/about/star-original-chongqing.png",
+    "public/assets/about/star-original-process.png",
+    "public/assets/login/star-login-yellow.png",
+    "public/assets/login/star-login-blue.png",
+    "public/assets/login/star-login-pink.png",
+    "public/assets/login/shape-login-pink.png",
+    "public/assets/login/shape-login-blue.png",
+  ]);
+
+  imagePaths.forEach((src) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = src;
+  });
+
+  locations.forEach((loc) => {
+    const audio = document.createElement("audio");
+    audio.preload = "metadata";
+    audio.src = loc.audio;
+  });
+}
+
+function scheduleAssetPreload() {
+  const run = () => preloadPublishedAssets();
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(run, { timeout: 1600 });
+  } else {
+    window.setTimeout(run, 700);
+  }
+}
+
 const homeHotspots = {
   liziba: [745, 610, 112, 48],
   jiefangbei: [1132, 547, 112, 48],
@@ -664,7 +714,7 @@ function renderDetailPage() {
         <section class="about-box">
           <h2>ABOUT HERE</h2>
           <p class="detail-text-reactive" data-reactive-text tabindex="0" role="button">${escapeHtml(loc.about)}</p>
-          <span class="decor-star" style="right:28px;bottom:28px">âœ?/span>
+          <span class="decor-star" style="right:28px;bottom:28px">&#10022;</span>
         </section>
         <section class="basic-box">
           <h2>BASIC INFO</h2>
@@ -682,7 +732,7 @@ function renderDetailPage() {
           <h2>RELATED LOCATIONS</h2>
           ${loc.related.map((item) => `
             <button class="related-item" data-related>
-              <span class="decor-star" style="position:static;font-size:44px;-webkit-text-stroke:1px var(--deep-blue);animation:none">âœ?/span>
+              <span class="decor-star" style="position:static;font-size:44px;-webkit-text-stroke:1px var(--deep-blue);animation:none">&#10022;</span>
               <span><strong>${escapeHtml(item[0])}</strong><span>${escapeHtml(item[1])}</span></span>
             </button>
           `).join("")}
@@ -774,7 +824,7 @@ function renderArchivePage() {
       <div class="archive-layer">
         <form class="archive-search" id="archiveSearch">
           <input value="${escapeHtml(state.archiveQuery)}" placeholder="SEARCH FOR SOUNDS" aria-label="Search for sounds" />
-          <button type="submit" aria-label="Search">âŒ?/button>
+          <button type="submit" aria-label="Search">&#128269;</button>
         </form>
         <div class="category-tabs">
           ${categories.map((category) => `
@@ -1130,3 +1180,4 @@ window.addEventListener("hashchange", () => {
 setScale();
 parseHash();
 render();
+scheduleAssetPreload();
