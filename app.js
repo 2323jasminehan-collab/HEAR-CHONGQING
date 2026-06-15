@@ -16,9 +16,9 @@ const locations = [
     district: "Yuzhong",
     signature: "Passing Monorail",
     audio: "public/audio/liziba.mp3",
-    preview: "public/assets/preview/liziba.jpg",
+    preview: "public/assets/preview-fast/liziba.jpg",
     detail: "public/assets/detail/liziba.jpg",
-    archive: "public/assets/archive/liziba.png",
+    archive: "public/assets/archive-fast/liziba.jpg",
     intro: "The iconic station where trains pass through a residential building, creating one of Chongqing's most recognizable sounds.",
     about: "A landmark where the monorail passes directly through a residential building, showcasing Chongqing's unique urban landscape.",
     related: [
@@ -36,9 +36,9 @@ const locations = [
     district: "Yuzhong",
     signature: "Urban Ambience",
     audio: "public/audio/jiefangbei.mp3",
-    preview: "public/assets/preview/jiefangbei.jpg",
+    preview: "public/assets/preview-fast/jiefangbei.jpg",
     detail: "public/assets/detail/jiefangbei.jpg",
-    archive: "public/assets/archive/jiefangbei.png",
+    archive: "public/assets/archive-fast/jiefangbei.jpg",
     intro: "The heartbeat of urban life, filled with movement, commerce, traffic, and everyday city activity.",
     about: "The vibrant center of Chongqing, where crowds, traffic, and daily activities create the rhythm of city life.",
     related: [
@@ -56,9 +56,9 @@ const locations = [
     district: "Yubei",
     signature: "Public Activity",
     audio: "public/audio/ranjiaba.mp3",
-    preview: "public/assets/preview/ranjiaba.jpg",
+    preview: "public/assets/preview-fast/ranjiaba.jpg",
     detail: "public/assets/detail/ranjiaba.jpg",
-    archive: "public/assets/archive/ranjiaba.png",
+    archive: "public/assets/archive-fast/ranjiaba.jpg",
     intro: "A hub of connection and movement, shaped by commuters, conversations, and everyday public activity.",
     about: "A busy transportation district filled with commuters, conversations, and the fast pace of everyday movement.",
     related: [
@@ -76,9 +76,9 @@ const locations = [
     district: "Yuzhong",
     signature: "Cultural Landscape",
     audio: "public/audio/eling.mp3",
-    preview: "public/assets/preview/eling.jpg",
+    preview: "public/assets/preview-fast/eling.jpg",
     detail: "public/assets/detail/eling.jpg",
-    archive: "public/assets/archive/eling.png",
+    archive: "public/assets/archive-fast/eling.jpg",
     intro: "A place where history meets the city, combining heritage, architecture, and panoramic views.",
     about: "A historic park that combines cultural heritage, architecture, and panoramic views of the city.",
     related: [
@@ -96,9 +96,9 @@ const locations = [
     district: "Nan'an",
     signature: "Mountain Atmosphere",
     audio: "public/audio/nanshan.mp3",
-    preview: "public/assets/preview/nanshan.jpg",
+    preview: "public/assets/preview-fast/nanshan.jpg",
     detail: "public/assets/detail/nanshan.jpg",
-    archive: "public/assets/archive/nanshan.png",
+    archive: "public/assets/archive-fast/nanshan.jpg",
     intro: "A natural escape above the city, offering quiet mountain air and a softer urban edge.",
     about: "A mountain area known for its natural scenery, offering a peaceful contrast to the urban environment.",
     related: [
@@ -116,9 +116,9 @@ const locations = [
     district: "Jiangbei",
     signature: "Performance Space",
     audio: "public/audio/grand-theatre.mp3",
-    preview: "public/assets/preview/grand-theater.jpg",
+    preview: "public/assets/preview-fast/grand-theater.jpg",
     detail: "public/assets/detail/grand-theater.jpg",
-    archive: "public/assets/archive/grand-theater.png",
+    archive: "public/assets/archive-fast/grand-theater.jpg",
     intro: "A stage for culture and creativity along the riverside, hosting performances, exhibitions, and events.",
     about: "A modern cultural venue that hosts performances, exhibitions, and public events along the riverside.",
     related: [
@@ -205,6 +205,7 @@ function preloadPublishedAssets() {
     "public/assets/screens/archive-grid-clean.png",
     "public/assets/screens/about-clean-stars.png",
     "public/assets/screens/login-clean-motion.png",
+    "public/assets/buttons/search-icon.png",
     ...Object.values(archiveButtonAssets),
     ...Object.values(basicInfoPhotos),
     ...locations.flatMap((loc) => [loc.preview, loc.detail, loc.archive]),
@@ -578,8 +579,16 @@ function refreshMapPreview() {
 
   const image = card.querySelector("img");
   if (image) {
+    image.classList.add("is-swapping");
     image.src = loc.preview;
     image.alt = loc.title;
+    const settle = () => image.classList.remove("is-swapping");
+    if (image.complete) {
+      settle();
+    } else {
+      image.addEventListener("load", settle, { once: true });
+      image.addEventListener("error", settle, { once: true });
+    }
   }
 
   const title = card.querySelector("h2");
@@ -682,7 +691,7 @@ function renderMapPage() {
         </div>
       </div>
       <aside class="preview-card">
-        <img src="${loc.preview}" alt="${escapeHtml(loc.title)}" />
+        <img src="${loc.preview}" alt="${escapeHtml(loc.title)}" decoding="async" fetchpriority="high" />
         <h2>${escapeHtml(loc.title)}</h2>
         <div class="pill">${escapeHtml(loc.category)}</div>
         <div class="preview-text">${escapeHtml(loc.intro)}</div>
@@ -792,7 +801,7 @@ function renderArchiveCard(loc) {
   const playing = audioState.playing && audioState.slug === loc.slug;
   return `
     <article class="archive-card ${playing ? "playing" : ""}">
-      <img src="${loc.archive}" alt="${escapeHtml(loc.title)}" />
+      <img src="${loc.archive}" alt="${escapeHtml(loc.title)}" decoding="async" loading="eager" />
       <h3>${escapeHtml(loc.title)}</h3>
       <div class="archive-pill">${escapeHtml(loc.category)}</div>
       <div class="archive-actions">
