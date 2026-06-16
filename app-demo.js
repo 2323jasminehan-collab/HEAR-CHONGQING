@@ -77,7 +77,7 @@ function clampState() {
 function updateUrl() {
   const hash = `#/${state.view}/${state.slug}/${state.photo}`;
   if (window.location.hash !== hash) {
-    history.replaceState(null, "", hash);
+    history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
   }
 }
 
