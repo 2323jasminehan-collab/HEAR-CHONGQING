@@ -1,282 +1,187 @@
 const BASE_W = 393;
 const BASE_H = 852;
 
-const screens = {
-  home: "APP/APP-HOME.png",
-  map: "APP/APP-MAP.png",
-  archive: "APP/APP-ARCHIVE.png",
-  archiveFilter: "APP/3-ARCHIVE/APP-ARCHIVE -FILTER.png",
+const HOME = "APP/APP-HOME.png";
+const MAP = "APP/APP-MAP.png";
+
+const locationOrder = [
+  "liziba",
+  "grand-theater",
+  "jiefangbei",
+  "nanshan",
+];
+
+const labels = {
+  liziba: "Liziba Station",
+  "grand-theater": "Grand Theater",
+  jiefangbei: "JieFangBei",
+  nanshan: "NanShan",
 };
 
-const locations = {
-  liziba: {
-    name: "Liziba Station",
-    category: "Transportation",
-    about: "A landmark where monorail sounds pass through Chongqing's layered urban landscape.",
-    photos: [
-      "APP/3-ARCHIVE/LIZIBA1.jpg",
-      "APP/3-ARCHIVE/LIZIBA2.jpg",
-      "APP/3-ARCHIVE/LIZIBA3.jpg",
-    ],
-  },
-  "eling-park": {
-    name: "ELing Park",
-    category: "Nature",
-    about: "Wind, footsteps, and hillside views gather above the river at one of Chongqing's quiet overlooks.",
-    photos: [
-      "APP/3-ARCHIVE/ELING PARK1.jpg",
-      "APP/3-ARCHIVE/ELING PARK2.jpg",
-      "APP/3-ARCHIVE/ELING PARK3.jpg",
-    ],
-  },
-  "grand-theater": {
-    name: "Grand Theater",
-    category: "Culture",
-    about: "A riverside cultural landmark where open plazas, performances, and traffic hum meet.",
-    photos: [
-      "APP/3-ARCHIVE/GRAND THEATER1.jpg",
-      "APP/3-ARCHIVE/GRAND THEATER2.jpg",
-      "APP/3-ARCHIVE/GRAND THEATER3.jpg",
-    ],
-  },
-  jiefangbei: {
-    name: "JieFangBei",
-    category: "Life",
-    about: "Crowds, crossings, shops, and street voices create the city's busy downtown rhythm.",
-    photos: [
-      "APP/3-ARCHIVE/JIEFANGBEI1.jpg",
-      "APP/3-ARCHIVE/JIEFANGBEI2.jpg",
-      "APP/3-ARCHIVE/JIEFANGBEI3.jpg",
-    ],
-  },
-  nanshan: {
-    name: "NanShan",
-    category: "Nature",
-    about: "A mountain viewpoint where distant city noise softens into leaves, wind, and open air.",
-    photos: [
-      "APP/3-ARCHIVE/NANSHAN1.jpg",
-      "APP/3-ARCHIVE/NANSHAN2.jpg",
-      "APP/3-ARCHIVE/NANSHAN3.jpg",
-    ],
-  },
-  ranjiaba: {
-    name: "RanJiaBa",
-    category: "Life",
-    about: "Everyday neighborhood movement, transit, and small street sounds form a local sound layer.",
-    photos: [
-      "APP/3-ARCHIVE/RANJIABA1.jpg",
-      "APP/3-ARCHIVE/RANJIABA2.jpg",
-      "APP/3-ARCHIVE/RANJIABA3.jpg",
-    ],
-  },
-};
+const archiveFrames = Object.fromEntries(
+  locationOrder.map((slug) => [
+    slug,
+    [0, 1, 2].map((index) => `APP/demo-frames/archive-${slug}-${index}.jpg`),
+  ]),
+);
 
 const state = {
-  page: "home",
-  selected: "liziba",
-  photoIndex: 0,
-  filterOpen: false,
+  view: "home",
+  slug: "liziba",
+  photo: 0,
 };
 
 const app = document.getElementById("appDemo");
+const phone = document.createElement("section");
+const screen = document.createElement("img");
 
-function px(value, base) {
-  return `${(value / base) * 100}%`;
+phone.className = "phone";
+phone.setAttribute("aria-label", "HEAR CHONGQING app demo");
+screen.className = "screen-image";
+screen.loading = "eager";
+screen.decoding = "sync";
+screen.draggable = false;
+phone.append(screen);
+app.replaceChildren(phone);
+
+function archiveSrc(slug = state.slug, photo = state.photo) {
+  return archiveFrames[slug]?.[photo] || archiveFrames.liziba[0];
 }
 
-function el(tag, props = {}, children = []) {
-  const node = document.createElement(tag);
-  Object.entries(props).forEach(([key, value]) => {
-    if (key === "className") node.className = value;
-    else if (key === "text") node.textContent = value;
-    else if (key === "style") Object.assign(node.style, value);
-    else node.setAttribute(key, value);
-  });
-  children.forEach((child) => node.append(child));
-  return node;
+function currentSrc() {
+  if (state.view === "home") return HOME;
+  if (state.view === "map") return MAP;
+  return archiveSrc();
 }
 
-function hotspot(label, rect, onClick) {
-  const node = el("button", {
-    type: "button",
-    className: "hotspot",
-    "aria-label": label,
-  });
-  const [x, y, width, height] = rect;
-  Object.assign(node.style, {
-    left: px(x, BASE_W),
-    top: px(y, BASE_H),
-    width: px(width, BASE_W),
-    height: px(height, BASE_H),
-  });
-  node.addEventListener("click", onClick);
-  return node;
-}
+function preloadFrames() {
+  const sources = [
+    HOME,
+    MAP,
+    ...Object.values(archiveFrames).flat(),
+  ];
 
-function background(src) {
-  return el("img", {
-    className: "screen-bg",
-    src,
-    alt: "",
-    draggable: "false",
+  sources.forEach((src) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = src;
   });
 }
 
-function navigate(page, selected = state.selected) {
-  state.page = page;
-  state.selected = locations[selected] ? selected : "liziba";
-  state.photoIndex = 0;
-  state.filterOpen = false;
-  const nextHash = `#/${state.page}/${state.selected}`;
-  if (window.location.hash !== nextHash) {
-    window.location.hash = nextHash;
-  } else {
-    render();
+function clampState() {
+  if (!["home", "map", "archive"].includes(state.view)) state.view = "home";
+  if (!archiveFrames[state.slug]) state.slug = "liziba";
+  if (state.photo < 0 || state.photo > 2) state.photo = 0;
+}
+
+function updateUrl() {
+  const hash = `#/${state.view}/${state.slug}/${state.photo}`;
+  if (window.location.hash !== hash) {
+    history.replaceState(null, "", hash);
   }
-}
-
-function addNav(layer) {
-  layer.append(
-    hotspot("Home", [24, 750, 76, 96], () => navigate("home")),
-    hotspot("Map", [116, 750, 78, 96], () => navigate("map")),
-    hotspot("Archive", [204, 750, 82, 96], () => navigate("archive")),
-    hotspot("Me", [295, 750, 74, 96], () => navigate("home")),
-  );
-}
-
-function renderHome(layer) {
-  layer.append(background(screens.home));
-
-  layer.append(
-    hotspot("Search opens archive", [25, 311, 334, 52], () => navigate("archive")),
-    hotspot("Transport category", [25, 407, 75, 75], () => navigate("map", "liziba")),
-    hotspot("Life category", [110, 407, 75, 75], () => navigate("map", "jiefangbei")),
-    hotspot("Culture category", [198, 407, 75, 75], () => navigate("map", "grand-theater")),
-    hotspot("Nature category", [283, 407, 75, 75], () => navigate("map", "nanshan")),
-    hotspot("Liziba Station", [25, 543, 102, 164], () => navigate("archive", "liziba")),
-    hotspot("JieFangBei", [141, 543, 102, 164], () => navigate("archive", "jiefangbei")),
-    hotspot("NanShan", [257, 543, 102, 164], () => navigate("archive", "nanshan")),
-  );
-
-  addNav(layer);
-}
-
-function renderMap(layer) {
-  layer.append(background(screens.map));
-
-  layer.append(
-    hotspot("Search opens selected archive", [29, 110, 332, 50], () => navigate("archive")),
-    hotspot("Grand Theater", [165, 211, 104, 92], () => navigate("archive", "grand-theater")),
-    hotspot("JieFangBei", [201, 388, 146, 63], () => navigate("archive", "jiefangbei")),
-    hotspot("Liziba Station sound card", [30, 560, 333, 146], () => navigate("archive", "liziba")),
-  );
-
-  addNav(layer);
-}
-
-function renderArchiveInfo(layer) {
-  const item = locations[state.selected] || locations.liziba;
-  const showPhotoSwap = state.selected !== "liziba" || state.photoIndex > 0;
-
-  if (showPhotoSwap) {
-    layer.append(
-      el("div", {
-        className: "archive-photo",
-        style: { backgroundImage: `url("${item.photos[state.photoIndex]}")` },
-      }),
-    );
-
-    const dots = el("div", { className: "archive-dots", "aria-hidden": "true" });
-    item.photos.forEach((_, index) => {
-      dots.append(el("span", { className: `archive-dot${index === state.photoIndex ? " is-active" : ""}` }));
-    });
-    layer.append(dots);
-  }
-
-  if (state.selected !== "liziba") {
-    layer.append(
-      el("h1", { className: "archive-title", text: item.name }),
-      el("div", { className: "archive-category", text: item.category }),
-      el("section", { className: "archive-about" }, [
-        el("h2", { text: "ABOUT HERE" }),
-        el("p", { text: item.about }),
-      ]),
-    );
-  }
-}
-
-function renderArchive(layer) {
-  layer.append(background(state.filterOpen ? screens.archiveFilter : screens.archive));
-
-  if (state.filterOpen) {
-    const filterItems = [
-      ["liziba", [228, 88, 99, 24]],
-      ["eling-park", [228, 112, 99, 24]],
-      ["grand-theater", [228, 136, 99, 24]],
-      ["jiefangbei", [228, 160, 99, 24]],
-      ["nanshan", [228, 184, 99, 24]],
-      ["ranjiaba", [228, 208, 99, 24]],
-    ];
-
-    filterItems.forEach(([slug, rect]) => {
-      layer.append(
-        hotspot(locations[slug].name, rect, () => {
-          state.selected = slug;
-          state.photoIndex = 0;
-          state.filterOpen = false;
-          render();
-        }),
-      );
-    });
-    layer.append(hotspot("Close filter", [330, 82, 33, 28], () => {
-      state.filterOpen = false;
-      render();
-    }));
-  } else {
-    renderArchiveInfo(layer);
-    layer.append(hotspot("Open archive filter", [330, 82, 33, 28], () => {
-      state.filterOpen = true;
-      render();
-    }));
-    layer.append(hotspot("Next archive photo", [30, 111, 333, 238], () => {
-      const item = locations[state.selected] || locations.liziba;
-      state.photoIndex = (state.photoIndex + 1) % item.photos.length;
-      render();
-    }));
-  }
-
-  addNav(layer);
 }
 
 function render() {
-  const phone = el("section", {
-    className: "phone",
-    "aria-label": "HEAR CHONGQING app demo",
-  });
-  const layer = el("div", { className: "screen" });
-
-  if (state.page === "map") renderMap(layer);
-  else if (state.page === "archive") renderArchive(layer);
-  else renderHome(layer);
-
-  phone.append(layer);
-  app.replaceChildren(phone);
+  clampState();
+  const src = currentSrc();
+  if (!screen.getAttribute("src")?.endsWith(src)) {
+    screen.src = src;
+  }
+  screen.alt = `HEAR CHONGQING ${state.view} ${labels[state.slug] || ""}`.trim();
+  updateUrl();
 }
 
-function syncFromHash() {
-  const [, pageFromHash, selectedFromHash] = window.location.hash.split("/");
-  state.page = ["home", "map", "archive"].includes(pageFromHash) ? pageFromHash : "home";
-  state.selected = locations[selectedFromHash] ? selectedFromHash : "liziba";
-  state.photoIndex = 0;
-  state.filterOpen = false;
+function go(view, slug = state.slug, photo = 0) {
+  state.view = view;
+  state.slug = archiveFrames[slug] ? slug : state.slug;
+  state.photo = photo;
   render();
 }
 
-window.addEventListener("hashchange", syncFromHash);
-
-if (!window.location.hash) {
-  window.location.hash = "#/home/liziba";
-  syncFromHash();
-} else {
-  syncFromHash();
+function inRect(x, y, rect) {
+  return x >= rect[0] && x <= rect[0] + rect[2] && y >= rect[1] && y <= rect[1] + rect[3];
 }
+
+function handleNav(x, y) {
+  if (y < 748) return false;
+  if (x < 101) go("home");
+  else if (x < 199) go("map");
+  else if (x < 294) go("archive");
+  else go("home");
+  return true;
+}
+
+function handleHome(x, y) {
+  if (handleNav(x, y)) return;
+
+  const actions = [
+    [[25, 311, 334, 52], () => go("archive", "liziba")],
+    [[25, 407, 75, 75], () => go("map", "liziba")],
+    [[110, 407, 75, 75], () => go("map", "jiefangbei")],
+    [[198, 407, 75, 75], () => go("map", "grand-theater")],
+    [[283, 407, 75, 75], () => go("map", "nanshan")],
+    [[25, 543, 102, 164], () => go("archive", "liziba")],
+    [[141, 543, 102, 164], () => go("archive", "jiefangbei")],
+    [[257, 543, 102, 164], () => go("archive", "nanshan")],
+  ];
+
+  actions.find(([rect, action]) => {
+    if (!inRect(x, y, rect)) return false;
+    action();
+    return true;
+  });
+}
+
+function handleMap(x, y) {
+  if (handleNav(x, y)) return;
+
+  const actions = [
+    [[29, 110, 332, 50], () => go("archive")],
+    [[165, 211, 104, 92], () => go("archive", "grand-theater")],
+    [[201, 388, 146, 63], () => go("archive", "jiefangbei")],
+    [[30, 560, 333, 146], () => go("archive", "liziba")],
+  ];
+
+  actions.find(([rect, action]) => {
+    if (!inRect(x, y, rect)) return false;
+    action();
+    return true;
+  });
+}
+
+function handleArchive(x, y) {
+  if (handleNav(x, y)) return;
+
+  if (inRect(x, y, [330, 82, 33, 28])) {
+    const current = locationOrder.indexOf(state.slug);
+    const nextSlug = locationOrder[(current + 1) % locationOrder.length];
+    go("archive", nextSlug, 0);
+    return;
+  }
+
+  if (inRect(x, y, [30, 111, 333, 238])) {
+    go("archive", state.slug, (state.photo + 1) % 3);
+  }
+}
+
+function handleScreenClick(event) {
+  const rect = screen.getBoundingClientRect();
+  const x = ((event.clientX - rect.left) / rect.width) * BASE_W;
+  const y = ((event.clientY - rect.top) / rect.height) * BASE_H;
+
+  if (state.view === "home") handleHome(x, y);
+  else if (state.view === "map") handleMap(x, y);
+  else handleArchive(x, y);
+}
+
+function syncFromHash() {
+  const [, view, slug, photo] = window.location.hash.split("/");
+  state.view = view || "home";
+  state.slug = archiveFrames[slug] ? slug : "liziba";
+  state.photo = Number.isInteger(Number(photo)) ? Number(photo) : 0;
+  render();
+}
+
+screen.addEventListener("click", handleScreenClick);
+preloadFrames();
+syncFromHash();
