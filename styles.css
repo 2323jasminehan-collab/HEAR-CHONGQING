@@ -1213,6 +1213,7 @@ button {
   background: var(--light-blue);
   color: var(--deep-blue);
   font-size: 20px;
+  font-weight: 500;
   box-shadow: none;
   outline: 0;
   appearance: none;
