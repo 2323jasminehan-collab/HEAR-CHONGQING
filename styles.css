@@ -591,6 +591,7 @@ button {
   text-align: center;
   padding-left: 0;
   font-size: 20px;
+  font-weight: 500;
   transition: transform 210ms cubic-bezier(.2, 1.4, .35, 1), background 180ms ease;
 }
 
