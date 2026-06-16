@@ -1,8 +1,8 @@
 const BASE_W = 393;
 const BASE_H = 852;
 
-const HOME = "APP/APP-HOME.png";
-const MAP = "APP/APP-MAP.png";
+const HOME = "APP/demo-frames/home-active.png";
+const MAP = "APP/demo-frames/map-active.png";
 
 const locationOrder = [
   "liziba",
@@ -21,7 +21,7 @@ const labels = {
 const archiveFrames = Object.fromEntries(
   locationOrder.map((slug) => [
     slug,
-    [0, 1, 2].map((index) => `APP/demo-frames/archive-${slug}-${index}.jpg`),
+    [0, 1, 2].map((index) => `APP/demo-frames/archive-${slug}-${index}.png`),
   ]),
 );
 
