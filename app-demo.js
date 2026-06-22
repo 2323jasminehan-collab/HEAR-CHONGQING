@@ -1,5 +1,6 @@
 const BASE_W = 393;
 const BASE_H = 852;
+const ARCHIVE_DEMO_DURATION = 30;
 
 const HOME = "APP/demo-frames/home-active.png";
 const MAP = "APP/demo-frames/map-audio-base.png";
@@ -54,6 +55,8 @@ const audioState = {
   media: null,
   playing: false,
   frame: null,
+  startedAt: 0,
+  duration: null,
 };
 
 const imageCache = new Map();
@@ -175,11 +178,13 @@ function drawAudioControl(config) {
   drawWave(config);
 
   if (config.timers) {
+    const elapsed = config.playing ? getAudioElapsed() : 0;
+    const remaining = config.playing ? Math.max(0, ARCHIVE_DEMO_DURATION - elapsed) : ARCHIVE_DEMO_DURATION;
     ctx.fillStyle = "#214aad";
     ctx.font = "14px Arial, Helvetica, sans-serif";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText("0:00", 123, 568);
-    ctx.fillText("0:30", 319, 568);
+    ctx.fillText(formatTimer(elapsed), 123, 568);
+    ctx.fillText(formatTimer(remaining), 319, 568);
   }
 
   if (icon?.loaded) {
@@ -238,6 +243,12 @@ function roundRect(x, y, width, height, radius) {
 
 function drawFrame(now = performance.now()) {
   clampState();
+
+  if (audioState.playing && audioState.duration && getAudioElapsed() >= audioState.duration) {
+    stopAudio();
+    return;
+  }
+
   const src = currentSrc();
   const entry = loadImage(src);
 
@@ -310,6 +321,8 @@ function toggleAudio(key, slug) {
   audioState.slug = slug;
   audioState.media = media;
   audioState.playing = true;
+  audioState.startedAt = performance.now();
+  audioState.duration = key.startsWith("archive-") ? ARCHIVE_DEMO_DURATION : null;
 
   media.play().catch(() => {});
   drawFrame();
@@ -330,8 +343,24 @@ function stopAudio(skipRender = false) {
   audioState.slug = null;
   audioState.media = null;
   audioState.playing = false;
+  audioState.startedAt = 0;
+  audioState.duration = null;
 
   if (!skipRender) render();
+}
+
+function getAudioElapsed() {
+  if (!audioState.playing) return 0;
+  const mediaTime = audioState.media?.currentTime;
+  if (Number.isFinite(mediaTime) && mediaTime > 0) return Math.min(ARCHIVE_DEMO_DURATION, mediaTime);
+  return Math.min(ARCHIVE_DEMO_DURATION, (performance.now() - audioState.startedAt) / 1000);
+}
+
+function formatTimer(seconds) {
+  const safe = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safe / 60);
+  const rest = String(safe % 60).padStart(2, "0");
+  return `${minutes}:${rest}`;
 }
 
 function handleHome(x, y) {
