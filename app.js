@@ -189,6 +189,17 @@ const archiveButtonAssets = {
 let assetsPreloaded = false;
 const imageCache = new Map();
 const audioCache = new Map();
+const cursorTrailAssets = [
+  { src: "public/assets/cursor-trail/pink-star.png", size: 50 },
+  { src: "public/assets/cursor-trail/blue-square.png", size: 42 },
+  { src: "public/assets/cursor-trail/yellow-star.png", size: 54 },
+];
+let cursorTrailLayer = null;
+let cursorTrailBound = false;
+let cursorTrailLastTime = 0;
+let cursorTrailLastPoint = { x: 0, y: 0 };
+let cursorTrailActive = 0;
+let cursorTrailCursor = 0;
 
 function warmImage(src) {
   if (imageCache.has(src)) return imageCache.get(src);
@@ -261,6 +272,7 @@ function preloadPublishedAssets() {
     "public/assets/login/star-login-pink.png",
     "public/assets/login/shape-login-pink.png",
     "public/assets/login/shape-login-blue.png",
+    ...cursorTrailAssets.map((asset) => asset.src),
   ]);
 
   imagePaths.forEach((src) => {
@@ -947,12 +959,82 @@ function render() {
     login: renderLoginPage,
   };
 
+  cursorTrailActive = 0;
+  cursorTrailLayer = null;
   app.innerHTML = templates[state.page]();
+  ensureCursorTrail();
   wireCommon();
   if (state.page === routes.map) wireMap();
   if (state.page === routes.archive) wireArchive();
   if (state.page === routes.login) wireLogin();
   refreshAudioUi();
+}
+
+function ensureCursorTrail() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  cursorTrailLayer = app.querySelector(".cursor-trail-layer");
+  if (!cursorTrailLayer) {
+    cursorTrailLayer = document.createElement("div");
+    cursorTrailLayer.className = "cursor-trail-layer";
+    cursorTrailLayer.setAttribute("aria-hidden", "true");
+    app.appendChild(cursorTrailLayer);
+  }
+  if (cursorTrailBound) return;
+  app.addEventListener("pointermove", handleCursorTrailMove, { passive: true });
+  app.addEventListener("pointerleave", () => {
+    cursorTrailLastTime = 0;
+  }, { passive: true });
+  cursorTrailBound = true;
+}
+
+function handleCursorTrailMove(event) {
+  if (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+  if (!cursorTrailLayer) return;
+  const now = performance.now();
+  const rect = app.getBoundingClientRect();
+  const scaleX = rect.width / app.offsetWidth || 1;
+  const scaleY = rect.height / app.offsetHeight || 1;
+  const x = (event.clientX - rect.left) / scaleX;
+  const y = (event.clientY - rect.top) / scaleY;
+  if (x < 0 || y < 0 || x > 1440 || y > 1024) return;
+  const moved = Math.hypot(x - cursorTrailLastPoint.x, y - cursorTrailLastPoint.y);
+  if (now - cursorTrailLastTime < 90 || moved < 34) return;
+  cursorTrailLastTime = now;
+  cursorTrailLastPoint = { x, y };
+
+  const count = cursorTrailActive < 3 ? 2 : 1;
+  for (let index = 0; index < count && cursorTrailActive < 5; index += 1) {
+    spawnCursorTrailPiece(x, y);
+  }
+}
+
+function spawnCursorTrailPiece(x, y) {
+  const asset = cursorTrailAssets[cursorTrailCursor % cursorTrailAssets.length];
+  cursorTrailCursor += 1;
+  const piece = document.createElement("img");
+  piece.className = "cursor-trail-piece";
+  piece.src = asset.src;
+  piece.alt = "";
+  piece.decoding = "async";
+  piece.draggable = false;
+  const size = asset.size * (0.82 + Math.random() * 0.28);
+  const startX = x + (Math.random() - 0.5) * 44;
+  const startY = y + (Math.random() - 0.5) * 24;
+  piece.style.left = `${startX}px`;
+  piece.style.top = `${startY}px`;
+  piece.style.width = `${size}px`;
+  piece.style.setProperty("--drift-x", `${Math.round((Math.random() - 0.5) * 76)}px`);
+  piece.style.setProperty("--fall-y", `${Math.round(112 + Math.random() * 78)}px`);
+  piece.style.setProperty("--rotate-start", `${Math.round((Math.random() - 0.5) * 34)}deg`);
+  piece.style.setProperty("--rotate-end", `${Math.round((Math.random() - 0.5) * 150)}deg`);
+  piece.style.setProperty("--scale-end", `${(0.72 + Math.random() * 0.18).toFixed(2)}`);
+  piece.style.setProperty("--fall-duration", `${Math.round(1120 + Math.random() * 420)}ms`);
+  cursorTrailLayer.appendChild(piece);
+  cursorTrailActive += 1;
+  piece.addEventListener("animationend", () => {
+    piece.remove();
+    cursorTrailActive = Math.max(0, cursorTrailActive - 1);
+  }, { once: true });
 }
 
 function wireCommon() {

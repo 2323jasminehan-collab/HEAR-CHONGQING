@@ -1841,6 +1841,50 @@ button {
   }
 }
 
+.cursor-trail-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cursor-trail-piece {
+  position: absolute;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) translateY(-8px) rotate(var(--rotate-start)) scale(0.78);
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  animation: cursorTrailFall var(--fall-duration, 1280ms) cubic-bezier(.22, .74, .28, 1) forwards;
+}
+
+@keyframes cursorTrailFall {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-8px) rotate(var(--rotate-start)) scale(0.78);
+  }
+  16% {
+    opacity: 0.96;
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate(calc(-50% + var(--drift-x)), calc(-50% + var(--fall-y)))
+      rotate(var(--rotate-end))
+      scale(var(--scale-end));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor-trail-layer {
+    display: none;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
