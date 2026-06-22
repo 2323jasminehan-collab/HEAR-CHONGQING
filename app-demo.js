@@ -145,9 +145,9 @@ function drawAudioUi(now = performance.now()) {
 
   if (state.view === "archive") {
     drawAudioControl({
-      wave: [137, 504, 218, 51],
-      button: [55, 506, 63, 62],
-      bars: 22,
+      wave: [153, 504, 176, 51],
+      button: [67, 512, 48, 48],
+      bars: 20,
       barWidth: 5,
       gap: 5,
       now,
@@ -168,8 +168,8 @@ function drawAudioControl(config) {
     ctx.fillStyle = "#214aad";
     ctx.font = "14px Arial, Helvetica, sans-serif";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText("0:00", 100, 568);
-    ctx.fillText("0:30", 320, 568);
+    ctx.fillText("0:00", 123, 568);
+    ctx.fillText("0:30", 319, 568);
   }
 
   if (icon?.loaded) {
@@ -370,7 +370,7 @@ function handleMap(x, y) {
 function handleArchive(x, y) {
   if (handleNav(x, y)) return;
 
-  if (inRect(x, y, [55, 506, 63, 62])) {
+  if (inRect(x, y, [57, 502, 68, 68])) {
     toggleAudio(`archive-${state.slug}`, state.slug);
     return;
   }
