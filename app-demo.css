@@ -43,11 +43,10 @@ body {
   }
 }
 
-.screen-image {
+.screen-canvas {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
   user-select: none;
   -webkit-user-drag: none;
   cursor: pointer;

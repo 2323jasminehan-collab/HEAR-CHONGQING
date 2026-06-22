@@ -3,6 +3,8 @@ const BASE_H = 852;
 
 const HOME = "APP/demo-frames/home-active.png";
 const MAP = "APP/demo-frames/map-active.png";
+const PLAY_ICON = "public/assets/buttons/archive-play.png";
+const PAUSE_ICON = "public/assets/buttons/archive-pause.png";
 
 const locationOrder = [
   "liziba",
@@ -18,6 +20,13 @@ const labels = {
   nanshan: "NanShan",
 };
 
+const audioFiles = {
+  liziba: "public/audio/liziba.mp3",
+  "grand-theater": "public/audio/grand-theatre.mp3",
+  jiefangbei: "public/audio/jiefangbei.mp3",
+  nanshan: "public/audio/nanshan.mp3",
+};
+
 const archiveFrames = Object.fromEntries(
   locationOrder.map((slug) => [
     slug,
@@ -31,18 +40,59 @@ const state = {
   photo: 0,
 };
 
+const audioState = {
+  key: null,
+  slug: null,
+  media: null,
+  playing: false,
+  frame: null,
+};
+
+const imageCache = new Map();
+const audioCache = new Map();
 const app = document.getElementById("appDemo");
 const phone = document.createElement("section");
-const screen = document.createElement("img");
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
 
 phone.className = "phone";
 phone.setAttribute("aria-label", "HEAR CHONGQING app demo");
-screen.className = "screen-image";
-screen.loading = "eager";
-screen.decoding = "sync";
-screen.draggable = false;
-phone.append(screen);
+canvas.className = "screen-canvas";
+canvas.width = BASE_W;
+canvas.height = BASE_H;
+phone.append(canvas);
 app.replaceChildren(phone);
+
+function loadImage(src) {
+  if (imageCache.has(src)) return imageCache.get(src);
+
+  const img = new Image();
+  const entry = {
+    img,
+    loaded: false,
+    promise: new Promise((resolve, reject) => {
+      img.onload = () => {
+        entry.loaded = true;
+        resolve(img);
+      };
+      img.onerror = reject;
+    }),
+  };
+  img.decoding = "async";
+  img.src = src;
+  imageCache.set(src, entry);
+  return entry;
+}
+
+function warmAudio(slug) {
+  if (audioCache.has(slug)) return audioCache.get(slug);
+
+  const media = new Audio(audioFiles[slug]);
+  media.preload = "auto";
+  media.addEventListener("ended", stopAudio);
+  audioCache.set(slug, media);
+  return media;
+}
 
 function archiveSrc(slug = state.slug, photo = state.photo) {
   return archiveFrames[slug]?.[photo] || archiveFrames.liziba[0];
@@ -55,17 +105,15 @@ function currentSrc() {
 }
 
 function preloadFrames() {
-  const sources = [
+  [
     HOME,
     MAP,
+    PLAY_ICON,
+    PAUSE_ICON,
     ...Object.values(archiveFrames).flat(),
-  ];
+  ].forEach((src) => loadImage(src));
 
-  sources.forEach((src) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.src = src;
-  });
+  Object.keys(audioFiles).forEach((slug) => warmAudio(slug));
 }
 
 function clampState() {
@@ -81,19 +129,129 @@ function updateUrl() {
   }
 }
 
-function render() {
+function drawPlayState(now = performance.now()) {
+  if (!audioState.playing) return;
+
+  if (state.view === "map" && audioState.key === "map-liziba") {
+    drawAudioControl({
+      wave: [139, 642, 154, 50],
+      button: [301, 632, 54, 58],
+      bars: 16,
+      barWidth: 4,
+      gap: 5,
+      now,
+    });
+    return;
+  }
+
+  if (state.view === "archive" && audioState.key === `archive-${state.slug}`) {
+    drawAudioControl({
+      wave: [137, 504, 218, 51],
+      button: [55, 506, 63, 62],
+      bars: 22,
+      barWidth: 5,
+      gap: 5,
+      now,
+    });
+  }
+}
+
+function drawAudioControl(config) {
+  const pause = imageCache.get(PAUSE_ICON);
+  const [bx, by, bw, bh] = config.button;
+
+  ctx.save();
+  ctx.fillStyle = "#f2adf2";
+  ctx.fillRect(config.wave[0] - 3, config.wave[1] - 3, config.wave[2] + 6, config.wave[3] + 6);
+  ctx.fillRect(bx - 4, by - 4, bw + 8, bh + 8);
+  drawWave(config);
+
+  if (pause?.loaded) {
+    ctx.drawImage(pause.img, bx, by, bw, bh);
+  } else {
+    ctx.fillStyle = "#214aad";
+    ctx.fillRect(bx + bw * 0.28, by + bh * 0.2, bw * 0.16, bh * 0.6);
+    ctx.fillRect(bx + bw * 0.56, by + bh * 0.2, bw * 0.16, bh * 0.6);
+  }
+  ctx.restore();
+}
+
+function drawWave({ wave, bars, barWidth, gap, now }) {
+  const baseHeights = [28, 42, 54, 36, 48, 24, 34, 44, 30, 58, 66, 36, 44, 30, 26, 40, 52, 34, 46, 28, 36, 50];
+  const [x, y, width, height] = wave;
+  const totalWidth = bars * barWidth + (bars - 1) * gap;
+  const startX = x + Math.max(0, (width - totalWidth) / 2);
+  const centerY = y + height / 2;
+  const phase = (now % 720) / 720;
+
+  ctx.fillStyle = "#df75dc";
+  for (let i = 0; i < bars; i += 1) {
+    const pulse = 0.82 + 0.34 * Math.sin((phase - i * 0.075) * Math.PI * 2);
+    const rawHeight = baseHeights[i % baseHeights.length] * pulse;
+    const barHeight = Math.max(8, Math.min(height, rawHeight * (height / 66)));
+    const barX = startX + i * (barWidth + gap);
+    const barY = centerY - barHeight / 2;
+    roundRect(barX, barY, barWidth, barHeight, barWidth / 2);
+    ctx.fill();
+  }
+}
+
+function roundRect(x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawFrame(now = performance.now()) {
   clampState();
   const src = currentSrc();
-  if (!screen.getAttribute("src")?.endsWith(src)) {
-    screen.src = src;
+  const entry = loadImage(src);
+
+  if (!entry.loaded) {
+    entry.promise.then(() => drawFrame(now));
+    return;
   }
-  screen.alt = `HEAR CHONGQING ${state.view} ${labels[state.slug] || ""}`.trim();
+
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+  ctx.drawImage(entry.img, 0, 0, BASE_W, BASE_H);
+  drawPlayState(now);
+}
+
+function startAnimation() {
+  if (audioState.frame) return;
+
+  const loop = (now) => {
+    drawFrame(now);
+    audioState.frame = audioState.playing ? requestAnimationFrame(loop) : null;
+  };
+  audioState.frame = requestAnimationFrame(loop);
+}
+
+function render() {
+  clampState();
+  drawFrame();
   updateUrl();
 }
 
 function go(view, slug = state.slug, photo = 0) {
+  const nextSlug = archiveFrames[slug] ? slug : state.slug;
+  const leavingAudioSurface =
+    view !== state.view ||
+    (view === "archive" && nextSlug !== state.slug) ||
+    (state.view === "map" && view !== "map");
+
+  if (leavingAudioSurface) stopAudio();
+
   state.view = view;
-  state.slug = archiveFrames[slug] ? slug : state.slug;
+  state.slug = nextSlug;
   state.photo = photo;
   render();
 }
@@ -109,6 +267,45 @@ function handleNav(x, y) {
   else if (x < 294) go("archive");
   else go("home");
   return true;
+}
+
+function toggleAudio(key, slug) {
+  if (audioState.playing && audioState.key === key) {
+    stopAudio();
+    return;
+  }
+
+  stopAudio(true);
+  const media = warmAudio(slug);
+  media.pause();
+  media.currentTime = 0;
+
+  audioState.key = key;
+  audioState.slug = slug;
+  audioState.media = media;
+  audioState.playing = true;
+
+  media.play().catch(() => {});
+  drawFrame();
+  startAnimation();
+}
+
+function stopAudio(skipRender = false) {
+  if (audioState.frame) {
+    cancelAnimationFrame(audioState.frame);
+    audioState.frame = null;
+  }
+
+  if (audioState.media) {
+    audioState.media.pause();
+  }
+
+  audioState.key = null;
+  audioState.slug = null;
+  audioState.media = null;
+  audioState.playing = false;
+
+  if (!skipRender) render();
 }
 
 function handleHome(x, y) {
@@ -135,6 +332,11 @@ function handleHome(x, y) {
 function handleMap(x, y) {
   if (handleNav(x, y)) return;
 
+  if (inRect(x, y, [300, 630, 58, 64])) {
+    toggleAudio("map-liziba", "liziba");
+    return;
+  }
+
   const actions = [
     [[29, 110, 332, 50], () => go("archive")],
     [[165, 211, 104, 92], () => go("archive", "grand-theater")],
@@ -152,6 +354,11 @@ function handleMap(x, y) {
 function handleArchive(x, y) {
   if (handleNav(x, y)) return;
 
+  if (inRect(x, y, [55, 506, 63, 62])) {
+    toggleAudio(`archive-${state.slug}`, state.slug);
+    return;
+  }
+
   if (inRect(x, y, [330, 82, 33, 28])) {
     const current = locationOrder.indexOf(state.slug);
     const nextSlug = locationOrder[(current + 1) % locationOrder.length];
@@ -165,7 +372,7 @@ function handleArchive(x, y) {
 }
 
 function handleScreenClick(event) {
-  const rect = screen.getBoundingClientRect();
+  const rect = canvas.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * BASE_W;
   const y = ((event.clientY - rect.top) / rect.height) * BASE_H;
 
@@ -182,6 +389,6 @@ function syncFromHash() {
   render();
 }
 
-screen.addEventListener("click", handleScreenClick);
+canvas.addEventListener("click", handleScreenClick);
 preloadFrames();
 syncFromHash();
