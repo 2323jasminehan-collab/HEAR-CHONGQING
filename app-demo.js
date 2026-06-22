@@ -34,10 +34,18 @@ const archiveFrames = Object.fromEntries(
   ]),
 );
 
+const archiveLikedFrames = Object.fromEntries(
+  locationOrder.map((slug) => [
+    slug,
+    [0, 1, 2].map((index) => `APP/demo-frames/archive-audio-liked-${slug}-${index}.png`),
+  ]),
+);
+
 const state = {
   view: "home",
   slug: "liziba",
   photo: 0,
+  liked: {},
 };
 
 const audioState = {
@@ -95,7 +103,8 @@ function warmAudio(slug) {
 }
 
 function archiveSrc(slug = state.slug, photo = state.photo) {
-  return archiveFrames[slug]?.[photo] || archiveFrames.liziba[0];
+  const frames = state.liked[slug] ? archiveLikedFrames : archiveFrames;
+  return frames[slug]?.[photo] || archiveFrames.liziba[0];
 }
 
 function currentSrc() {
@@ -111,6 +120,7 @@ function preloadFrames() {
     PLAY_ICON,
     PAUSE_ICON,
     ...Object.values(archiveFrames).flat(),
+    ...Object.values(archiveLikedFrames).flat(),
   ].forEach((src) => loadImage(src));
 
   Object.keys(audioFiles).forEach((slug) => warmAudio(slug));
@@ -369,6 +379,12 @@ function handleMap(x, y) {
 
 function handleArchive(x, y) {
   if (handleNav(x, y)) return;
+
+  if (inRect(x, y, [320, 365, 48, 52])) {
+    state.liked[state.slug] = !state.liked[state.slug];
+    render();
+    return;
+  }
 
   if (inRect(x, y, [57, 502, 68, 68])) {
     toggleAudio(`archive-${state.slug}`, state.slug);
