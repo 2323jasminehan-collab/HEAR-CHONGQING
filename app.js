@@ -998,14 +998,11 @@ function handleCursorTrailMove(event) {
   const y = (event.clientY - rect.top) / scaleY;
   if (x < 0 || y < 0 || x > 1440 || y > 1024) return;
   const moved = Math.hypot(x - cursorTrailLastPoint.x, y - cursorTrailLastPoint.y);
-  if (now - cursorTrailLastTime < 90 || moved < 34) return;
+  if (now - cursorTrailLastTime < 105 || moved < 44) return;
   cursorTrailLastTime = now;
   cursorTrailLastPoint = { x, y };
 
-  const count = cursorTrailActive < 3 ? 2 : 1;
-  for (let index = 0; index < count && cursorTrailActive < 5; index += 1) {
-    spawnCursorTrailPiece(x, y);
-  }
+  if (cursorTrailActive < 5) spawnCursorTrailPiece(x, y);
 }
 
 function spawnCursorTrailPiece(x, y) {
@@ -1018,8 +1015,10 @@ function spawnCursorTrailPiece(x, y) {
   piece.decoding = "async";
   piece.draggable = false;
   const size = asset.size * (0.82 + Math.random() * 0.28);
-  const startX = x + (Math.random() - 0.5) * 44;
-  const startY = y + (Math.random() - 0.5) * 24;
+  const spreadAngle = (cursorTrailCursor * 2.4 + Math.random() * 0.7) % (Math.PI * 2);
+  const spreadRadius = 24 + Math.random() * 40;
+  const startX = x + Math.cos(spreadAngle) * spreadRadius;
+  const startY = y + Math.sin(spreadAngle) * spreadRadius * 0.62;
   piece.style.left = `${startX}px`;
   piece.style.top = `${startY}px`;
   piece.style.width = `${size}px`;

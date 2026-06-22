@@ -1873,6 +1873,9 @@ button {
   26% {
     opacity: 0.96;
   }
+  68% {
+    opacity: 0.88;
+  }
   100% {
     opacity: 0;
     transform:
