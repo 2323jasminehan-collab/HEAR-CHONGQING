@@ -2,7 +2,7 @@ const BASE_W = 393;
 const BASE_H = 852;
 
 const HOME = "APP/demo-frames/home-active.png";
-const MAP = "APP/demo-frames/map-active.png";
+const MAP = "APP/demo-frames/map-audio-base.png";
 const PLAY_ICON = "public/assets/buttons/archive-play.png";
 const PAUSE_ICON = "public/assets/buttons/archive-pause.png";
 
@@ -30,7 +30,7 @@ const audioFiles = {
 const archiveFrames = Object.fromEntries(
   locationOrder.map((slug) => [
     slug,
-    [0, 1, 2].map((index) => `APP/demo-frames/archive-${slug}-${index}.png`),
+    [0, 1, 2].map((index) => `APP/demo-frames/archive-audio-base-${slug}-${index}.png`),
   ]),
 );
 
@@ -129,10 +129,8 @@ function updateUrl() {
   }
 }
 
-function drawPlayState(now = performance.now()) {
-  if (!audioState.playing) return;
-
-  if (state.view === "map" && audioState.key === "map-liziba") {
+function drawAudioUi(now = performance.now()) {
+  if (state.view === "map") {
     drawAudioControl({
       wave: [139, 642, 154, 50],
       button: [301, 632, 54, 58],
@@ -140,11 +138,12 @@ function drawPlayState(now = performance.now()) {
       barWidth: 4,
       gap: 5,
       now,
+      playing: audioState.playing && audioState.key === "map-liziba",
     });
     return;
   }
 
-  if (state.view === "archive" && audioState.key === `archive-${state.slug}`) {
+  if (state.view === "archive") {
     drawAudioControl({
       wave: [137, 504, 218, 51],
       button: [55, 506, 63, 62],
@@ -152,31 +151,48 @@ function drawPlayState(now = performance.now()) {
       barWidth: 5,
       gap: 5,
       now,
+      playing: audioState.playing && audioState.key === `archive-${state.slug}`,
+      timers: true,
     });
   }
 }
 
 function drawAudioControl(config) {
-  const pause = imageCache.get(PAUSE_ICON);
+  const icon = imageCache.get(config.playing ? PAUSE_ICON : PLAY_ICON);
   const [bx, by, bw, bh] = config.button;
 
   ctx.save();
-  ctx.fillStyle = "#f2adf2";
-  ctx.fillRect(config.wave[0] - 3, config.wave[1] - 3, config.wave[2] + 6, config.wave[3] + 6);
-  ctx.fillRect(bx - 4, by - 4, bw + 8, bh + 8);
   drawWave(config);
 
-  if (pause?.loaded) {
-    ctx.drawImage(pause.img, bx, by, bw, bh);
+  if (config.timers) {
+    ctx.fillStyle = "#214aad";
+    ctx.font = "14px Arial, Helvetica, sans-serif";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("0:00", 100, 568);
+    ctx.fillText("0:30", 320, 568);
+  }
+
+  if (icon?.loaded) {
+    ctx.drawImage(icon.img, bx, by, bw, bh);
+  } else if (config.playing) {
+    ctx.fillStyle = "#214aad";
+    roundRect(bx + bw * 0.28, by + bh * 0.2, bw * 0.16, bh * 0.6, 4);
+    ctx.fill();
+    roundRect(bx + bw * 0.56, by + bh * 0.2, bw * 0.16, bh * 0.6, 4);
+    ctx.fill();
   } else {
     ctx.fillStyle = "#214aad";
-    ctx.fillRect(bx + bw * 0.28, by + bh * 0.2, bw * 0.16, bh * 0.6);
-    ctx.fillRect(bx + bw * 0.56, by + bh * 0.2, bw * 0.16, bh * 0.6);
+    ctx.beginPath();
+    ctx.moveTo(bx + bw * 0.25, by + bh * 0.18);
+    ctx.lineTo(bx + bw * 0.25, by + bh * 0.82);
+    ctx.lineTo(bx + bw * 0.82, by + bh * 0.5);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.restore();
 }
 
-function drawWave({ wave, bars, barWidth, gap, now }) {
+function drawWave({ wave, bars, barWidth, gap, now, playing }) {
   const baseHeights = [28, 42, 54, 36, 48, 24, 34, 44, 30, 58, 66, 36, 44, 30, 26, 40, 52, 34, 46, 28, 36, 50];
   const [x, y, width, height] = wave;
   const totalWidth = bars * barWidth + (bars - 1) * gap;
@@ -186,7 +202,7 @@ function drawWave({ wave, bars, barWidth, gap, now }) {
 
   ctx.fillStyle = "#df75dc";
   for (let i = 0; i < bars; i += 1) {
-    const pulse = 0.82 + 0.34 * Math.sin((phase - i * 0.075) * Math.PI * 2);
+    const pulse = playing ? 0.82 + 0.34 * Math.sin((phase - i * 0.075) * Math.PI * 2) : 0.82;
     const rawHeight = baseHeights[i % baseHeights.length] * pulse;
     const barHeight = Math.max(8, Math.min(height, rawHeight * (height / 66)));
     const barX = startX + i * (barWidth + gap);
@@ -222,7 +238,7 @@ function drawFrame(now = performance.now()) {
 
   ctx.clearRect(0, 0, BASE_W, BASE_H);
   ctx.drawImage(entry.img, 0, 0, BASE_W, BASE_H);
-  drawPlayState(now);
+  drawAudioUi(now);
 }
 
 function startAnimation() {
